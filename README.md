@@ -32,10 +32,17 @@ make run
 ## Current application features
 
 - Local path selection and rescanning.
+- Recursive discovery of local modules inside the selected root, with distinct
+  module-instance scopes and cycle/depth protection.
 - Native HCL parsing with partial results for malformed files.
 - Resources, data sources, module calls, variables, locals, and outputs.
 - Static value-flow graph with zoom, pan, minimap, ELK layout, search, and
   object-type filters.
+- Obsidian-style topology minimap with nodes, edges, viewport tracking, and
+  click-to-navigate behavior.
+- Distraction-free graph view that hides all application chrome (`Esc` exits).
+- Click-to-focus complete upstream and downstream dependency chains, including
+  cyclic paths.
 - Incoming and outgoing dependency inspection.
 - Unresolved-reference reporting.
 - File navigation and a read-only, locally bundled Monaco HCL editor.
@@ -45,9 +52,9 @@ make run
   symbolic-link rejection.
 
 The graph is a static configuration graph, not Terraform's runtime execution
-graph and not a cloud architecture topology. This version analyzes one module
-directory at a time; recursive local-module discovery is the next backend
-step.
+graph and not a cloud architecture topology. Registry and Git module sources
+are shown as calls but are never downloaded. Cross-module input/output tracing
+is the next semantic-analysis step.
 
 ## CLI inventory
 
@@ -108,6 +115,7 @@ go test -race ./...
 go vet ./...
 
 cd web
+npm run test
 npm run typecheck
 npm run build
 npm audit --omit=dev

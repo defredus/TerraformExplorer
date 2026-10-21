@@ -25,13 +25,15 @@ const labels: Record<DeclarationKind, string> = {
 function TerraformNodeComponent({ data, selected }: NodeProps<ExplorerFlowNode>) {
   const node = data.terraform
   const Icon = icons[node.kind]
+  const chainClass = data.chainRole === 'none' ? '' : `is-chain-${data.chainRole}`
+  const moduleLabel = node.moduleAddress === 'root' ? 'root' : node.moduleAddress.replace(/^module\./, '')
 
   return (
-    <div className={`terraform-node terraform-node--${node.kind} ${selected ? 'is-selected' : ''} ${data.dimmed ? 'is-dimmed' : ''}`}>
+    <div className={`terraform-node terraform-node--${node.kind} ${selected ? 'is-selected' : ''} ${chainClass} ${data.dimmed ? 'is-dimmed' : ''}`}>
       <Handle type="target" position={Position.Left} className="node-handle" />
       <div className="terraform-node__icon"><Icon size={17} strokeWidth={1.8} /></div>
       <div className="terraform-node__content">
-        <span className="terraform-node__kind">{labels[node.kind]}</span>
+        <span className="terraform-node__kind" title={node.moduleAddress}>{labels[node.kind]} · {moduleLabel}</span>
         <strong title={node.address}>{node.label}</strong>
         <span className="terraform-node__type">{node.type || node.address}</span>
       </div>

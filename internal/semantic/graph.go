@@ -16,6 +16,7 @@ type Graph struct {
 type Node struct {
 	ID             string                    `json:"id"`
 	Address        string                    `json:"address"`
+	ModuleAddress  string                    `json:"moduleAddress"`
 	Label          string                    `json:"label"`
 	Kind           hclparser.DeclarationKind `json:"kind"`
 	Type           string                    `json:"type,omitempty"`
@@ -41,7 +42,7 @@ type UnresolvedReference struct {
 	Reference  hclparser.Reference `json:"reference"`
 }
 
-// BuildGraph resolves syntax traversals against declarations from one module.
+// BuildGraph resolves syntax traversals inside each discovered module instance.
 // It intentionally does not evaluate expressions or invent resource instances.
 func BuildGraph(result hclparser.Result) Graph {
 	graph := Graph{
@@ -55,7 +56,8 @@ func BuildGraph(result hclparser.Result) Graph {
 		id := nodeID(declaration)
 		graph.Nodes = append(graph.Nodes, Node{
 			ID:             id,
-			Address:        declaration.Address,
+			Address:        qualifiedAddress(declaration.ModuleAddress, declaration.Address),
+			ModuleAddress:  normalizedModuleAddress(declaration.ModuleAddress),
 			Label:          declaration.Name,
 			Kind:           declaration.Kind,
 			Type:           declaration.Type,
@@ -63,7 +65,8 @@ func BuildGraph(result hclparser.Result) Graph {
 			Range:          declaration.Range,
 			SelectionRange: declaration.SelectionRange,
 		})
-		byAddress[declaration.Address] = append(byAddress[declaration.Address], id)
+		key := symbolKey(declaration.ModuleAddress, declaration.Address)
+		byAddress[key] = append(byAddress[key], id)
 	}
 
 	for _, declaration := range result.Declarations {
@@ -74,7 +77,7 @@ func BuildGraph(result hclparser.Result) Graph {
 				if reason != "type_constraint" {
 					graph.Unresolved = append(graph.Unresolved, UnresolvedReference{
 						ConsumerID: consumerID,
-						Address:    address,
+						Address:    qualifiedAddress(declaration.ModuleAddress, address),
 						Reason:     reason,
 						Reference:  reference,
 					})
@@ -82,7 +85,7 @@ func BuildGraph(result hclparser.Result) Graph {
 				continue
 			}
 
-			producers := byAddress[address]
+			producers := byAddress[symbolKey(declaration.ModuleAddress, address)]
 			if len(producers) != 1 {
 				reason := "symbol_not_found"
 				if len(producers) > 1 {
@@ -90,7 +93,7 @@ func BuildGraph(result hclparser.Result) Graph {
 				}
 				graph.Unresolved = append(graph.Unresolved, UnresolvedReference{
 					ConsumerID: consumerID,
-					Address:    address,
+					Address:    qualifiedAddress(declaration.ModuleAddress, address),
 					Reason:     reason,
 					Reference:  reference,
 				})
@@ -113,7 +116,26 @@ func BuildGraph(result hclparser.Result) Graph {
 }
 
 func nodeID(declaration hclparser.Declaration) string {
-	return fmt.Sprintf("%s|%s|%s|%d", declaration.Kind, declaration.Address, declaration.File, declaration.Range.Start.Byte)
+	return fmt.Sprintf("%s|%s|%s|%s|%d", declaration.Kind, normalizedModuleAddress(declaration.ModuleAddress), declaration.Address, declaration.File, declaration.Range.Start.Byte)
+}
+
+func normalizedModuleAddress(address string) string {
+	if address == "" {
+		return hclparser.RootModuleAddress
+	}
+	return address
+}
+
+func symbolKey(moduleAddress, localAddress string) string {
+	return normalizedModuleAddress(moduleAddress) + "|" + localAddress
+}
+
+func qualifiedAddress(moduleAddress, localAddress string) string {
+	moduleAddress = normalizedModuleAddress(moduleAddress)
+	if moduleAddress == hclparser.RootModuleAddress || localAddress == "" {
+		return localAddress
+	}
+	return moduleAddress + "." + localAddress
 }
 
 func edgeKind(attributePath string) string {

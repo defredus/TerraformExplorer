@@ -2,23 +2,31 @@ package hclparser
 
 // SchemaVersion is incremented when the JSON representation changes in an
 // incompatible way.
-const SchemaVersion = "2"
+const SchemaVersion = "3"
+
+const RootModuleAddress = "root"
 
 type Result struct {
 	SchemaVersion string        `json:"schemaVersion"`
 	Module        Module        `json:"module"`
+	Modules       []Module      `json:"modules"`
 	Files         []File        `json:"files"`
 	Declarations  []Declaration `json:"declarations"`
 	Diagnostics   []Diagnostic  `json:"diagnostics"`
 }
 
 type Module struct {
-	Path string `json:"path"`
+	Address string `json:"address"`
+	Path    string `json:"path"`
+	Source  string `json:"source,omitempty"`
+	Parent  string `json:"parent,omitempty"`
 }
 
 type File struct {
-	Path  string `json:"path"`
-	Bytes int64  `json:"bytes"`
+	Path          string `json:"path"`
+	Bytes         int64  `json:"bytes"`
+	ModuleAddress string `json:"moduleAddress"`
+	SourcePath    string `json:"-"`
 }
 
 type DeclarationKind string
@@ -35,6 +43,8 @@ const (
 type Declaration struct {
 	Kind           DeclarationKind `json:"kind"`
 	Address        string          `json:"address"`
+	ModuleAddress  string          `json:"moduleAddress"`
+	ModuleSource   string          `json:"moduleSource,omitempty"`
 	Name           string          `json:"name"`
 	Type           string          `json:"type,omitempty"`
 	File           string          `json:"file"`

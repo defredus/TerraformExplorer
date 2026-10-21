@@ -9,6 +9,7 @@ import {
   FileCode2,
   FolderOpen,
   Info,
+  Maximize2,
   Network,
   RefreshCw,
   Search,
@@ -20,13 +21,13 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MiniMap,
   ReactFlow,
   type Edge,
   type ReactFlowInstance,
 } from '@xyflow/react'
 import { createScan, readSource } from './api'
-import { layoutGraph, type ExplorerFlowNode } from './layout'
+import { GraphMiniMap } from './GraphMiniMap'
+import { focusGraph, layoutGraph, type ExplorerFlowNode } from './layout'
 import { TerraformNode } from './TerraformNode'
 import type { DeclarationKind, Diagnostic, GraphEdge, GraphNode, Snapshot, SourceRange } from './types'
 
@@ -57,6 +58,7 @@ export function App() {
   const [scanLoading, setScanLoading] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [graphOnly, setGraphOnly] = useState(false)
   const [activeKinds, setActiveKinds] = useState(() => new Set<DeclarationKind>(allKinds))
   const [flowNodes, setFlowNodes] = useState<ExplorerFlowNode[]>([])
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
@@ -67,6 +69,10 @@ export function App() {
     () => snapshot?.graph.nodes.find((node) => node.id === selection.nodeId),
     [snapshot, selection.nodeId],
   )
+  const focusedGraph = useMemo(
+    () => focusGraph(flowNodes, flowEdges, snapshot?.graph.edges ?? [], selection.nodeId, search),
+    [flowNodes, flowEdges, snapshot, selection.nodeId, search],
+  )
 
   useEffect(() => {
     if (!snapshot) {
@@ -75,7 +81,7 @@ export function App() {
       return
     }
     let current = true
-    layoutGraph(snapshot.graph.nodes, snapshot.graph.edges, activeKinds, search).then((layout) => {
+    layoutGraph(snapshot.graph.nodes, snapshot.graph.edges, activeKinds).then((layout) => {
       if (!current) return
       setFlowNodes(layout.nodes)
       setFlowEdges(layout.edges)
@@ -84,7 +90,21 @@ export function App() {
     return () => {
       current = false
     }
-  }, [snapshot, activeKinds, search, reactFlow])
+  }, [snapshot, activeKinds, reactFlow])
+
+  useEffect(() => {
+    const fitTimer = window.setTimeout(() => reactFlow?.fitView({ padding: graphOnly ? 0.08 : 0.18, duration: 300 }), 40)
+    if (!graphOnly) return () => window.clearTimeout(fitTimer)
+
+    function exitGraphView(event: KeyboardEvent) {
+      if (event.key === 'Escape') setGraphOnly(false)
+    }
+    window.addEventListener('keydown', exitGraphView)
+    return () => {
+      window.clearTimeout(fitTimer)
+      window.removeEventListener('keydown', exitGraphView)
+    }
+  }, [graphOnly, reactFlow])
 
   useEffect(() => {
     const file = selection.file
@@ -165,7 +185,7 @@ export function App() {
   const dependencies = selectedNode ? dependencyDetails(snapshot!, selectedNode) : null
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${graphOnly ? 'app-shell--graph-only' : ''}`}>
       <header className="app-header">
         <div className="brand">
           <span className="brand__mark"><Network size={19} /></span>
@@ -204,13 +224,14 @@ export function App() {
       <main className="workspace">
         <aside className="sidebar">
           <section className="module-card">
-            <div className="module-card__eyebrow">CURRENT MODULE</div>
+            <div className="module-card__eyebrow">PROJECT ROOT</div>
             <div className="module-card__name"><CircleDot size={15} /> {moduleName}</div>
             <div className="module-card__path" title={snapshot?.analysis.module.path}>{snapshot?.analysis.module.path ?? 'Choose a local directory to begin'}</div>
             {snapshot && (
               <div className="module-card__stats">
                 <span><b>{snapshot.graph.nodes.length}</b> objects</span>
                 <span><b>{snapshot.graph.edges.length}</b> links</span>
+                <span><b>{snapshot.analysis.modules.length}</b> modules</span>
               </div>
             )}
           </section>
@@ -269,16 +290,26 @@ export function App() {
                 )
               })}
             </div>
-            <button className="toolbar-button" onClick={() => reactFlow?.fitView({ padding: 0.18, duration: 300 })} disabled={!snapshot}>
-              <RefreshCw size={14} /> Fit graph
-            </button>
+            <div className="graph-toolbar__actions">
+              {selectedNode && (
+                <button className="focus-pill" onClick={() => setSelection((current) => ({ file: current.file }))} title="Clear dependency-chain focus">
+                  <Network size={13} /> Chain: {selectedNode.label} <X size={12} />
+                </button>
+              )}
+              <button className="toolbar-button" onClick={() => reactFlow?.fitView({ padding: 0.18, duration: 300 })} disabled={!snapshot}>
+                <RefreshCw size={14} /> Fit graph
+              </button>
+              <button className="toolbar-button" onClick={() => setGraphOnly(true)} disabled={!snapshot} title="Show only the graph; press Escape to exit">
+                <Maximize2 size={14} /> Graph view
+              </button>
+            </div>
           </div>
 
           <div className="graph-canvas">
             {snapshot ? (
               <ReactFlow<ExplorerFlowNode>
-                nodes={flowNodes}
-                edges={flowEdges}
+                nodes={focusedGraph.nodes}
+                edges={focusedGraph.edges}
                 nodeTypes={nodeTypes}
                 onInit={setReactFlow}
                 onNodeClick={(_, node) => selectNode(node.data.terraform)}
@@ -291,14 +322,8 @@ export function App() {
                 proOptions={{ hideAttribution: true }}
               >
                 <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#252c35" />
-                <Controls showInteractive={false} position="bottom-left" />
-                <MiniMap
-                  position="bottom-right"
-                  pannable
-                  zoomable
-                  maskColor="rgba(7, 10, 14, 0.76)"
-                  nodeColor={(node) => minimapColor((node.data as ExplorerFlowNode['data']).terraform.kind)}
-                />
+                {!graphOnly && <Controls showInteractive={false} position="bottom-left" />}
+                {!graphOnly && <GraphMiniMap nodes={focusedGraph.nodes} edges={focusedGraph.edges} />}
               </ReactFlow>
             ) : (
               <Welcome onDemo={() => void scan('./testdata/simple-module')} />
@@ -306,7 +331,9 @@ export function App() {
             {snapshot && snapshot.graph.nodes.length === 0 && (
               <div className="canvas-empty"><FileCode2 size={28} /><b>No supported declarations found</b><span>The directory contains no resource, data, module, variable, local, or output blocks.</span></div>
             )}
-            <div className="graph-legend"><Info size={13} /> Static configuration graph · not runtime infrastructure</div>
+            {!graphOnly && <div className={`graph-legend ${selectedNode ? 'graph-legend--focused' : ''}`}>
+              {selectedNode ? <><Network size={13} /> Blue = upstream · green = downstream · click canvas to clear</> : <><Info size={13} /> Static configuration graph · not runtime infrastructure</>}
+            </div>}
           </div>
         </section>
 
@@ -325,6 +352,7 @@ export function App() {
                 <div className="address-block"><code>{selectedNode.address}</code></div>
                 <div className="meta-grid">
                   <span>Defined in</span><button onClick={() => selectFile(selectedNode.file, selectedNode.range)}>{selectedNode.file}:{selectedNode.range.start.line}</button>
+                  <span>Module</span><b>{selectedNode.moduleAddress}</b>
                   <span>Block type</span><b>{selectedNode.type || selectedNode.kind}</b>
                 </div>
               </div>
@@ -416,17 +444,6 @@ function dependencyDetails(snapshot: Snapshot, node: GraphNode) {
     outgoing: snapshot.graph.edges.filter((edge) => edge.source === node.id),
     unresolved: snapshot.graph.unresolved.filter((item) => item.consumerId === node.id),
   }
-}
-
-function minimapColor(kind: DeclarationKind) {
-  return {
-    resource: '#58d6a5',
-    data: '#58a6d6',
-    module: '#d7a95e',
-    variable: '#a78bfa',
-    local: '#ef8f6b',
-    output: '#d9d66f',
-  }[kind]
 }
 
 function basename(path: string) {

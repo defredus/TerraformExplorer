@@ -22,11 +22,20 @@ export interface Diagnostic {
 export interface SourceFile {
   path: string
   bytes: number
+  moduleAddress: string
+}
+
+export interface ModuleInstance {
+  address: string
+  path: string
+  source?: string
+  parent?: string
 }
 
 export interface GraphNode {
   id: string
   address: string
+  moduleAddress: string
   label: string
   kind: DeclarationKind
   type?: string
@@ -61,7 +70,8 @@ export interface Snapshot {
   createdAt: string
   analysis: {
     schemaVersion: string
-    module: { path: string }
+    module: ModuleInstance
+    modules: ModuleInstance[]
     files: SourceFile[]
     declarations: unknown[]
     diagnostics: Diagnostic[]

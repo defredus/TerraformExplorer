@@ -11,5 +11,6 @@ ui:
 
 test:
 	go test ./...
+	cd web && npm run test
 	cd web && npm run typecheck
 

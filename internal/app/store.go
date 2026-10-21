@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/terraform-explorer/terraform-explorer/internal/discovery"
 	"github.com/terraform-explorer/terraform-explorer/internal/hclparser"
 	"github.com/terraform-explorer/terraform-explorer/internal/semantic"
 )
@@ -47,7 +49,7 @@ func NewStore() *Store {
 }
 
 func (store *Store) Scan(path string) (*Snapshot, error) {
-	result, err := hclparser.ScanDir(path)
+	result, err := discovery.ScanDir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -88,30 +90,29 @@ func (store *Store) ReadSource(id, file string) (Source, error) {
 	if err != nil {
 		return Source{}, err
 	}
-	if file == "" || filepath.IsAbs(file) || filepath.Clean(file) != file || filepath.Dir(file) != "." {
+	if file == "" || filepath.IsAbs(file) || filepath.Clean(file) != file || file == ".." || strings.HasPrefix(file, ".."+string(filepath.Separator)) {
 		return Source{}, ErrInvalidSource
 	}
 
-	allowed := false
+	sourcePath := ""
 	for _, candidate := range snapshot.Analysis.Files {
 		if candidate.Path == file {
-			allowed = true
+			sourcePath = candidate.SourcePath
 			break
 		}
 	}
-	if !allowed {
+	if sourcePath == "" {
 		return Source{}, ErrInvalidSource
 	}
 
-	path := filepath.Join(snapshot.Analysis.Module.Path, file)
-	info, err := os.Lstat(path)
+	info, err := os.Lstat(sourcePath)
 	if err != nil {
 		return Source{}, err
 	}
 	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > maxSourceSize {
 		return Source{}, ErrInvalidSource
 	}
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return Source{}, err
 	}

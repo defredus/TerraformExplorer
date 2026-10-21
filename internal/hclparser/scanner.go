@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const maxTerraformFileSize int64 = 10 << 20
@@ -29,7 +30,8 @@ func ScanDir(dir string) (Result, error) {
 
 	result := Result{
 		SchemaVersion: SchemaVersion,
-		Module:        Module{Path: root},
+		Module:        Module{Address: RootModuleAddress, Path: root},
+		Modules:       []Module{{Address: RootModuleAddress, Path: root}},
 		Files:         make([]File, 0),
 		Declarations:  make([]Declaration, 0),
 		Diagnostics:   make([]Diagnostic, 0),
@@ -78,7 +80,12 @@ func ScanDir(dir string) (Result, error) {
 			continue
 		}
 
-		result.Files = append(result.Files, File{Path: entry.Name(), Bytes: int64(len(source))})
+		result.Files = append(result.Files, File{
+			Path:          entry.Name(),
+			Bytes:         int64(len(source)),
+			ModuleAddress: RootModuleAddress,
+			SourcePath:    path,
+		})
 		parseFile(entry.Name(), path, source, &result)
 	}
 
@@ -145,6 +152,7 @@ func extractBlock(file string, source []byte, block *hclsyntax.Block, result *Re
 			return
 		}
 		appendBlockDeclaration(result, DeclarationModule, block.Labels[0], "", block, file, source, block.LabelRanges[0])
+		result.Declarations[len(result.Declarations)-1].ModuleSource = staticModuleSource(block)
 	case "variable":
 		if !requireLabels(file, block, 1, result) {
 			return
@@ -160,6 +168,7 @@ func extractBlock(file string, source []byte, block *hclsyntax.Block, result *Re
 			result.Declarations = append(result.Declarations, Declaration{
 				Kind:           DeclarationLocal,
 				Address:        "local." + attribute.Name,
+				ModuleAddress:  RootModuleAddress,
 				Name:           attribute.Name,
 				File:           file,
 				Range:          sourceRange(file, attribute.Range()),
@@ -189,6 +198,7 @@ func appendBlockDeclaration(result *Result, kind DeclarationKind, name, typeName
 	result.Declarations = append(result.Declarations, Declaration{
 		Kind:           kind,
 		Address:        declarationAddress(kind, typeName, name),
+		ModuleAddress:  RootModuleAddress,
 		Name:           name,
 		Type:           typeName,
 		File:           file,
@@ -196,6 +206,18 @@ func appendBlockDeclaration(result *Result, kind DeclarationKind, name, typeName
 		SelectionRange: sourceRange(file, selection),
 		References:     bodyReferences(file, source, block.Body, ""),
 	})
+}
+
+func staticModuleSource(block *hclsyntax.Block) string {
+	attribute, ok := block.Body.Attributes["source"]
+	if !ok {
+		return ""
+	}
+	value, diagnostics := attribute.Expr.Value(nil)
+	if diagnostics.HasErrors() || !value.IsKnown() || value.IsNull() || value.Type() != cty.String {
+		return ""
+	}
+	return value.AsString()
 }
 
 func bodyReferences(file string, source []byte, body *hclsyntax.Body, prefix string) []Reference {
