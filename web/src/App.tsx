@@ -6,6 +6,7 @@ import {
   Braces,
   ChevronRight,
   CircleDot,
+  ExternalLink,
   FileCode2,
   FolderOpen,
   Info,
@@ -59,6 +60,7 @@ export function App() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [graphOnly, setGraphOnly] = useState(false)
+  const [sourceOpen, setSourceOpen] = useState(false)
   const [activeKinds, setActiveKinds] = useState(() => new Set<DeclarationKind>(allKinds))
   const [flowNodes, setFlowNodes] = useState<ExplorerFlowNode[]>([])
   const [flowEdges, setFlowEdges] = useState<Edge[]>([])
@@ -107,6 +109,15 @@ export function App() {
   }, [graphOnly, reactFlow])
 
   useEffect(() => {
+    if (!sourceOpen) return
+    function closeSourceWindow(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSourceOpen(false)
+    }
+    window.addEventListener('keydown', closeSourceWindow)
+    return () => window.removeEventListener('keydown', closeSourceWindow)
+  }, [sourceOpen])
+
+  useEffect(() => {
     const file = selection.file
     if (!snapshot || !file) {
       setSource('')
@@ -145,6 +156,7 @@ export function App() {
     setError('')
     setSelection({})
     setSource('')
+    setSourceOpen(false)
     try {
       const next = await createScan(target)
       setSnapshot(next)
@@ -170,6 +182,7 @@ export function App() {
 
   function selectFile(file: string, range?: SourceRange) {
     setSelection({ file, range })
+    setSourceOpen(true)
   }
 
   function toggleKind(kind: DeclarationKind) {
@@ -299,7 +312,7 @@ export function App() {
               <button className="toolbar-button" onClick={() => reactFlow?.fitView({ padding: 0.18, duration: 300 })} disabled={!snapshot}>
                 <RefreshCw size={14} /> Fit graph
               </button>
-              <button className="toolbar-button" onClick={() => setGraphOnly(true)} disabled={!snapshot} title="Show only the graph; press Escape to exit">
+              <button className="toolbar-button" onClick={() => { setSourceOpen(false); setGraphOnly(true) }} disabled={!snapshot} title="Show only the graph; press Escape to exit">
                 <Maximize2 size={14} /> Graph view
               </button>
             </div>
@@ -316,7 +329,8 @@ export function App() {
                 onPaneClick={() => setSelection((current) => ({ file: current.file }))}
                 minZoom={0.2}
                 maxZoom={2}
-                nodesDraggable
+                nodesDraggable={false}
+                panOnDrag
                 nodesConnectable={false}
                 elementsSelectable
                 proOptions={{ hideAttribution: true }}
@@ -334,6 +348,26 @@ export function App() {
             {!graphOnly && <div className={`graph-legend ${selectedNode ? 'graph-legend--focused' : ''}`}>
               {selectedNode ? <><Network size={13} /> Blue = upstream · green = downstream · click canvas to clear</> : <><Info size={13} /> Static configuration graph · not runtime infrastructure</>}
             </div>}
+            {sourceOpen && selection.file && !graphOnly && (
+              <div className="source-window" role="dialog" aria-modal="false" aria-labelledby="source-window-title">
+                <div className="source-window__header">
+                  <div className="source-window__identity">
+                    <span className="source-window__icon"><FileCode2 size={16} /></span>
+                    <div>
+                      <span id="source-window-title">SOURCE FILE</span>
+                      <code title={selection.file}>{selection.file}</code>
+                    </div>
+                  </div>
+                  {selection.range && <span className="source-window__range">Lines {selection.range.start.line}–{selection.range.end.line}</span>}
+                  <button className="icon-button source-window__close" onClick={() => setSourceOpen(false)} aria-label="Close source window" title="Close source window (Esc)"><X size={16} /></button>
+                </div>
+                <div className="source-window__editor">
+                  <Suspense fallback={<div className="code-state"><span className="spinner" /> Loading local editor…</div>}>
+                    <CodeViewer content={source} file={selection.file} range={selection.range} loading={sourceLoading} />
+                  </Suspense>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -351,7 +385,7 @@ export function App() {
               <div className="inspector__meta">
                 <div className="address-block"><code>{selectedNode.address}</code></div>
                 <div className="meta-grid">
-                  <span>Defined in</span><button onClick={() => selectFile(selectedNode.file, selectedNode.range)}>{selectedNode.file}:{selectedNode.range.start.line}</button>
+                  <span>Defined in</span><button onClick={() => setSourceOpen(true)}>{selectedNode.file}:{selectedNode.range.start.line}</button>
                   <span>Module</span><b>{selectedNode.moduleAddress}</b>
                   <span>Block type</span><b>{selectedNode.type || selectedNode.kind}</b>
                 </div>
@@ -370,18 +404,19 @@ export function App() {
           ) : (
             <div className="inspector-placeholder">
               <Braces size={20} />
-              <span>{selection.file ? 'Viewing the complete source file.' : 'Select a graph object to inspect its dependencies and source.'}</span>
+              <span>{selection.file ? 'File selected. Open it in the source workspace.' : 'Select a graph object to inspect its dependencies and source.'}</span>
             </div>
           )}
 
-          <div className="source-heading">
-            <span><FileCode2 size={14} /> SOURCE</span>
-            {selection.file && <code>{selection.file}</code>}
-          </div>
-          <div className="source-viewer">
-            <Suspense fallback={<div className="code-state"><span className="spinner" /> Loading local editor…</div>}>
-              <CodeViewer content={source} file={selection.file ?? ''} range={selection.range} loading={sourceLoading} />
-            </Suspense>
+          <div className="source-launch">
+            <div className="source-launch__heading"><FileCode2 size={14} /> SOURCE</div>
+            <button disabled={!selection.file} onClick={() => setSourceOpen(true)}>
+              <ExternalLink size={16} />
+              <span>
+                <b>{selection.file ? 'Open source workspace' : 'No source selected'}</b>
+                <small>{selection.file ?? 'Select a node or file first'}</small>
+              </span>
+            </button>
           </div>
         </aside>
       </main>

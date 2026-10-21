@@ -92,7 +92,8 @@ button { color: inherit; }
 .focus-pill:hover { border-color: #4b816e; background: #14281f; }
 .focus-pill svg:last-child { flex: 0 0 auto; margin-left: 2px; }
 .graph-canvas { position: relative; min-height: 0; flex: 1; }
-.react-flow__pane { cursor: grab; }
+.react-flow__pane, .react-flow__node { cursor: grab; }
+.react-flow__pane:active, .react-flow__node:active { cursor: grabbing; }
 .react-flow__controls { overflow: hidden; border: 1px solid var(--border) !important; border-radius: 6px !important; box-shadow: none !important; }
 .react-flow__controls-button { background: var(--panel-2) !important; border-color: var(--border) !important; fill: var(--muted) !important; }
 .react-flow__controls-button:hover { background: var(--panel-3) !important; }
@@ -199,10 +200,25 @@ button { color: inherit; }
 .unresolved-box b { font-size: 9px; }
 .unresolved-box span { overflow: hidden; color: #9b896d; font-family: monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .inspector-placeholder { min-height: 110px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: var(--subtle); border-bottom: 1px solid var(--border); font-size: 10px; text-align: center; }
-.source-heading { min-height: 35px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--border); color: var(--muted); background: #0b0f14; }
-.source-heading span { display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 720; letter-spacing: .08em; }
-.source-heading code { overflow: hidden; max-width: 220px; color: var(--subtle); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.source-viewer { min-height: 180px; flex: 1; background: #0b0e13; }
+.source-launch { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); background: #0b0f14; }
+.source-launch__heading { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; color: var(--subtle); font-size: 9px; font-weight: 720; letter-spacing: .08em; }
+.source-launch > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--panel-2); color: var(--accent); cursor: pointer; text-align: left; }
+.source-launch > button:hover:not(:disabled) { border-color: #3f6f5e; background: #132019; }
+.source-launch > button:disabled { color: var(--subtle); cursor: default; opacity: .58; }
+.source-launch > button span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.source-launch > button b, .source-launch > button small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-launch > button b { color: #c9d3dc; font-size: 10px; }
+.source-launch > button small { color: var(--subtle); font-family: "JetBrains Mono", monospace; font-size: 9px; }
+.source-window { position: absolute; inset: 12px; z-index: 8; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #34404c; border-radius: 8px; background: #090d12; box-shadow: 0 18px 54px rgba(0,0,0,.52); }
+.source-window__header { min-height: 50px; flex: 0 0 50px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 1px solid var(--border); background: #0d1218; }
+.source-window__identity { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
+.source-window__icon { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border: 1px solid #315246; border-radius: 6px; background: #0f1b17; color: var(--accent); }
+.source-window__identity div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.source-window__identity span:not(.source-window__icon) { color: var(--subtle); font-size: 8px; font-weight: 750; letter-spacing: .12em; }
+.source-window__identity code { overflow: hidden; color: #c5ced8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.source-window__range { flex: 0 0 auto; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 9px; }
+.source-window__close { flex: 0 0 auto; border: 1px solid transparent; }
+.source-window__editor { min-height: 0; flex: 1; background: #0b0e13; }
 .code-state { height: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px; color: var(--subtle); font-size: 10px; text-align: center; }
 .source-highlight { background: rgba(89,214,167,.08); border-top: 1px solid rgba(89,214,167,.12); border-bottom: 1px solid rgba(89,214,167,.12); }
 .source-highlight-gutter { border-left: 2px solid var(--accent); margin-left: 3px; }

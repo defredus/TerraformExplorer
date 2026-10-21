@@ -41,11 +41,14 @@ make run
 - Obsidian-style topology minimap with nodes, edges, viewport tracking, and
   click-to-navigate behavior.
 - Distraction-free graph view that hides all application chrome (`Esc` exits).
+- Canvas panning can start on either empty space or a graph node; nodes remain
+  clickable but are positioned exclusively by the automatic layout.
 - Click-to-focus complete upstream and downstream dependency chains, including
   cyclic paths.
 - Incoming and outgoing dependency inspection.
 - Unresolved-reference reporting.
-- File navigation and a read-only, locally bundled Monaco HCL editor.
+- File navigation and a large source workspace backed by a read-only, locally
+  bundled Monaco HCL editor while the inspector remains available.
 - Exact file, line, column, and byte ranges.
 - Parser diagnostics linked to source.
 - Same-origin API protection, source path validation, file-size limits, and
