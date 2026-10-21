@@ -27,6 +27,7 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import { createScan, readSource } from './api'
+import { DockWorkspace } from './DockWorkspace'
 import { GraphMiniMap } from './GraphMiniMap'
 import { focusGraph, layoutGraph, type ExplorerFlowNode } from './layout'
 import { TerraformNode } from './TerraformNode'
@@ -234,7 +235,8 @@ export function App() {
         </div>
       )}
 
-      <main className="workspace">
+      <DockWorkspace
+        explorer={(
         <aside className="sidebar">
           <section className="module-card">
             <div className="module-card__eyebrow">PROJECT ROOT</div>
@@ -290,7 +292,9 @@ export function App() {
             </div>
           </section>
         </aside>
+        )}
 
+        center={(
         <section className="graph-panel">
           <div className="graph-toolbar">
             <div className="filter-group">
@@ -370,11 +374,13 @@ export function App() {
             )}
           </div>
         </section>
+        )}
 
+        inspector={(
         <aside className="inspector">
           <div className="inspector__header">
             <div>
-              <span className="inspector__eyebrow">INSPECTOR</span>
+              <span className="inspector__eyebrow">SELECTION</span>
               <h2>{selectedNode?.label ?? selection.file ?? 'Nothing selected'}</h2>
             </div>
             {selectedNode && <span className={`kind-badge kind-badge--${selectedNode.kind}`}>{selectedNode.kind}</span>}
@@ -419,7 +425,8 @@ export function App() {
             </button>
           </div>
         </aside>
-      </main>
+        )}
+      />
     </div>
   )
 }

@@ -41,6 +41,8 @@ make run
 - Obsidian-style topology minimap with nodes, edges, viewport tracking, and
   click-to-navigate behavior.
 - Distraction-free graph view that hides all application chrome (`Esc` exits).
+- Unity-style dock layout: drag the Explorer or Inspector tab to swap sides,
+  resize either panel with its splitter, and keep the layout between sessions.
 - Canvas panning can start on either empty space or a graph node; nodes remain
   clickable but are positioned exclusively by the automatic layout.
 - Click-to-focus complete upstream and downstream dependency chains, including
