@@ -1,0 +1,6 @@
+/terraform-explorer
+/dist/
+/coverage.out
+/web/node_modules/
+
+
