@@ -15,6 +15,9 @@ func TestScanDirFindsTerraformDeclarations(t *testing.T) {
 	if result.SchemaVersion != SchemaVersion {
 		t.Fatalf("schema version = %q, want %q", result.SchemaVersion, SchemaVersion)
 	}
+	if len(result.Modules) != 1 || result.Modules[0].Address != RootModuleAddress {
+		t.Fatalf("modules = %#v, want root module", result.Modules)
+	}
 	if got, want := len(result.Files), 2; got != want {
 		t.Fatalf("files = %d, want %d", got, want)
 	}
@@ -45,6 +48,9 @@ func TestScanDirFindsTerraformDeclarations(t *testing.T) {
 		if declaration.SelectionRange.Start.Byte < declaration.Range.Start.Byte || declaration.SelectionRange.End.Byte > declaration.Range.End.Byte {
 			t.Errorf("declaration[%d] selection is outside declaration: %#v", index, declaration)
 		}
+	}
+	if got := result.Declarations[0].ModuleSource; got != "./modules/labels" {
+		t.Fatalf("module source = %q, want %q", got, "./modules/labels")
 	}
 }
 

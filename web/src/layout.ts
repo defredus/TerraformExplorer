@@ -1,5 +1,6 @@
 import { MarkerType, type Edge, type Node } from '@xyflow/react'
 import type { ELK as ELKInstance, ElkNode } from 'elkjs/lib/elk-api'
+import { dependencyChain, type ChainRole } from './chain'
 import type { GraphEdge, GraphNode } from './types'
 
 const nodeWidth = 224
@@ -20,7 +21,6 @@ export interface ExplorerNodeData extends Record<string, unknown> {
 }
 
 export type ExplorerFlowNode = Node<ExplorerNodeData, 'terraform'>
-export type ChainRole = 'none' | 'selected' | 'upstream' | 'downstream' | 'both'
 
 export async function layoutGraph(
   graphNodes: GraphNode[],
@@ -49,11 +49,12 @@ export async function layoutGraph(
   const positions = new Map<string, ElkNode>(layout.children?.map((child) => [child.id, child]) ?? [])
   const flowNodes: ExplorerFlowNode[] = visible.map((node) => {
     const position = positions.get(node.id)
-    const haystack = `${node.address} ${node.type ?? ''} ${node.file}`.toLowerCase()
     return {
       id: node.id,
       type: 'terraform',
       position: { x: position?.x ?? 0, y: position?.y ?? 0 },
+      width: nodeWidth,
+      height: nodeHeight,
       data: {
         terraform: node,
         dimmed: false,
@@ -123,56 +124,6 @@ export function focusGraph(
   })
 
   return { nodes: focusedNodes, edges: focusedEdges }
-}
-
-export function dependencyChain(edges: GraphEdge[], focusNodeID?: string) {
-  const nodeRoles = new Map<string, ChainRole>()
-  const edgeRoles = new Map<string, ChainRole>()
-  if (!focusNodeID) return { nodeRoles, edgeRoles }
-
-  const incoming = new Map<string, GraphEdge[]>()
-  const outgoing = new Map<string, GraphEdge[]>()
-  for (const edge of edges) {
-    incoming.set(edge.target, [...(incoming.get(edge.target) ?? []), edge])
-    outgoing.set(edge.source, [...(outgoing.get(edge.source) ?? []), edge])
-  }
-
-  const upstreamNodes = walkChain(focusNodeID, incoming, (edge) => edge.source, edgeRoles, 'upstream')
-  const downstreamNodes = walkChain(focusNodeID, outgoing, (edge) => edge.target, edgeRoles, 'downstream')
-
-  nodeRoles.set(focusNodeID, 'selected')
-  for (const id of upstreamNodes) {
-    if (id !== focusNodeID) nodeRoles.set(id, downstreamNodes.has(id) ? 'both' : 'upstream')
-  }
-  for (const id of downstreamNodes) {
-    if (id !== focusNodeID && !nodeRoles.has(id)) nodeRoles.set(id, 'downstream')
-  }
-
-  return { nodeRoles, edgeRoles }
-}
-
-function walkChain(
-  start: string,
-  adjacency: Map<string, GraphEdge[]>,
-  nextNode: (edge: GraphEdge) => string,
-  edgeRoles: Map<string, ChainRole>,
-  role: 'upstream' | 'downstream',
-) {
-  const visited = new Set<string>([start])
-  const queue = [start]
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    for (const edge of adjacency.get(current) ?? []) {
-      const previousRole = edgeRoles.get(edge.id)
-      edgeRoles.set(edge.id, previousRole && previousRole !== role ? 'both' : role)
-      const next = nextNode(edge)
-      if (!visited.has(next)) {
-        visited.add(next)
-        queue.push(next)
-      }
-    }
-  }
-  return visited
 }
 
 function chainColor(role: ChainRole) {

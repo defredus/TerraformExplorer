@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "4.7.0",

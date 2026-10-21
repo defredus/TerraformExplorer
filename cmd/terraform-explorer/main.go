@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/terraform-explorer/terraform-explorer/internal/app"
-	"github.com/terraform-explorer/terraform-explorer/internal/hclparser"
+	"github.com/terraform-explorer/terraform-explorer/internal/discovery"
 	"github.com/terraform-explorer/terraform-explorer/internal/httpapi"
 	"github.com/terraform-explorer/terraform-explorer/internal/webui"
 )
@@ -99,7 +99,7 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	result, err := hclparser.ScanDir(flags.Arg(0))
+	result, err := discovery.ScanDir(flags.Arg(0))
 	if err != nil {
 		var pathErr *os.PathError
 		if errors.As(err, &pathErr) {

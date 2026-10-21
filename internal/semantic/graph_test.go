@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/terraform-explorer/terraform-explorer/internal/discovery"
 	"github.com/terraform-explorer/terraform-explorer/internal/hclparser"
 )
 
@@ -70,6 +71,30 @@ func TestBuildGraphClassifiesDependencyKindsAndUnknowns(t *testing.T) {
 	}
 	if graph.Unresolved[0].Reason != "symbol_not_found" || graph.Unresolved[1].Reason != "runtime_symbol" {
 		t.Fatalf("unexpected unresolved reasons: %#v", graph.Unresolved)
+	}
+}
+
+func TestBuildGraphKeepsDiscoveredModuleScopesSeparate(t *testing.T) {
+	result, err := discovery.ScanDir(filepath.Join("..", "..", "testdata", "nested-project"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph := BuildGraph(result)
+
+	wantAddresses := map[string]bool{
+		"var.name":                true,
+		"module.service.var.name": true,
+		"module.service.module.labels.var.prefix":  true,
+		"module.service.module.labels.local.value": true,
+	}
+	for _, node := range graph.Nodes {
+		delete(wantAddresses, node.Address)
+	}
+	if len(wantAddresses) != 0 {
+		t.Fatalf("qualified graph nodes missing: %#v", wantAddresses)
+	}
+	if len(graph.Unresolved) != 0 {
+		t.Fatalf("unresolved = %#v, want none", graph.Unresolved)
 	}
 }
 
